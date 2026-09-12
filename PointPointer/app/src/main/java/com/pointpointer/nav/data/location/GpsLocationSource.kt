@@ -79,6 +79,6 @@ class GpsLocationSource(private val context: Context) {
             )
         }
     } catch (_: Exception) {
-        // Помилка або відсутність даних просто ігнорується без відправки null
+        // Помилка або відсутність даних ігнорується
     }
 }
