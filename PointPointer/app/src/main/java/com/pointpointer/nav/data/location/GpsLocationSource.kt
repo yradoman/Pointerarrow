@@ -73,15 +73,12 @@ class GpsLocationSource(private val context: Context) {
                         accuracy = last.accuracy,
                         speedMetersPerSec = if (last.hasSpeed()) last.speed else 0f,
                         bearing = if (last.hasBearing()) last.bearing else null,
-                        hasBearing = last.hasBearing(),
-                        timeEpochMs = last.time
-                    )
+                    hasBearing = last.hasBearing(),
+                    timeEpochMs = last.time
                 )
-            } else {
-                emit(null)
-            }
-        } catch (_: Exception) {
-            emit(null)
+            )
         }
+    } catch (_: Exception) {
+        // Помилка або відсутність даних просто ігнорується без відправки null
     }
 }
