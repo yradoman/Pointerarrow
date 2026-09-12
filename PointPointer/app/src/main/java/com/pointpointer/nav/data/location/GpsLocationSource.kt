@@ -61,24 +61,26 @@ class GpsLocationSource(private val context: Context) {
         awaitClose {
             locationManager.removeUpdates(listener)
         }
-    }.onStart {
-        try {
-            val last = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                ?: locationManager.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER)
-            if (last != null) {
-                emit(
-                    GpsUpdate(
-                        latitude = last.latitude,
-                        longitude = last.longitude,
-                        accuracy = last.accuracy,
-                        speedMetersPerSec = if (last.hasSpeed()) last.speed else 0f,
-                        bearing = if (last.hasBearing()) last.bearing else null,
-                    hasBearing = last.hasBearing(),
-                    timeEpochMs = last.time
-                )
-            )
+   }.onStart {
+            try {
+                val last = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                    ?: locationManager.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER)
+                if (last != null) {
+                    emit(
+                        GpsUpdate(
+                            latitude = last.latitude,
+                            longitude = last.longitude,
+                            accuracy = last.accuracy,
+                            speedMetersPerSec = if (last.hasSpeed()) last.speed else 0f,
+                            bearing = if (last.hasBearing()) last.bearing else null,
+                            hasBearing = last.hasBearing(),
+                            timeEpochMs = last.time
+                        )
+                    )
+                }
+            } catch (_: Exception) {
+                // Помилка або відсутність даних ігнорується
+            }
         }
-    } catch (_: Exception) {
-        // Помилка або відсутність даних ігнорується
     }
 }
