@@ -5,7 +5,6 @@ import android.content.Context
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
-import android.os.Bundle
 import android.os.Looper
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -26,24 +25,19 @@ class GpsLocationSource(private val context: Context) {
     private val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
     @SuppressLint("MissingPermission")
-    val locationFlow: Flow<GpsUpdate?> = callbackFlow {
-        val listener = object : LocationListener {
-            override fun onLocationChanged(loc: Location) {
-                trySend(
-                    GpsUpdate(
-                        latitude = loc.latitude,
-                        longitude = loc.longitude,
-                        accuracy = loc.accuracy,
-                        speedMetersPerSec = if (loc.hasSpeed()) loc.speed else 0f,
-                        bearing = if (loc.hasBearing()) loc.bearing else null,
-                        hasBearing = loc.hasBearing(),
-                        timeEpochMs = loc.time
-                    )
+    val locationFlow: Flow<GpsUpdate> = callbackFlow {
+        val listener = LocationListener { loc ->
+            trySend(
+                GpsUpdate(
+                    latitude = loc.latitude,
+                    longitude = loc.longitude,
+                    accuracy = loc.accuracy,
+                    speedMetersPerSec = if (loc.hasSpeed()) loc.speed else 0f,
+                    bearing = if (loc.hasBearing()) loc.bearing else null,
+                    hasBearing = loc.hasBearing(),
+                    timeEpochMs = loc.time
                 )
-            }
-            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-            override fun onProviderEnabled(provider: String) {}
-            override fun onProviderDisabled(provider: String) {}
+            )
         }
 
         try {
@@ -61,26 +55,25 @@ class GpsLocationSource(private val context: Context) {
         awaitClose {
             locationManager.removeUpdates(listener)
         }
-   }.onStart {
-            try {
-                val last = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                    ?: locationManager.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER)
-                if (last != null) {
-                    emit(
-                        GpsUpdate(
-                            latitude = last.latitude,
-                            longitude = last.longitude,
-                            accuracy = last.accuracy,
-                            speedMetersPerSec = if (last.hasSpeed()) last.speed else 0f,
-                            bearing = if (last.hasBearing()) last.bearing else null,
-                            hasBearing = last.hasBearing(),
-                            timeEpochMs = last.time
-                        )
+    }.onStart {
+        try {
+            val last = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                ?: locationManager.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER)
+            if (last != null) {
+                emit(
+                    GpsUpdate(
+                        latitude = last.latitude,
+                        longitude = last.longitude,
+                        accuracy = last.accuracy,
+                        speedMetersPerSec = if (last.hasSpeed()) last.speed else 0f,
+                        bearing = if (last.hasBearing()) last.bearing else null,
+                        hasBearing = last.hasBearing(),
+                        timeEpochMs = last.time
                     )
-                }
-            } catch (_: Exception) {
-                // Помилка або відсутність даних ігнорується
+                )
             }
+        } catch (_: Exception) {
+            // Помилка або відсутність даних ігнорується
         }
     }
 }
