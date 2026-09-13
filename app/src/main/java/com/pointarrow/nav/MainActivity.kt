@@ -290,4 +290,4 @@ fun PointArrowAppContent(viewModel: MainViewModel) {
         }
         isSaveWaypointDialogOpen = false
     }
-)
+}
