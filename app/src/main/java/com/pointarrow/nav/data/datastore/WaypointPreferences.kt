@@ -14,7 +14,7 @@ private val Context.waypointsDataStore by preferencesDataStore(name = "pointarro
 
 /**
  * Збереження списку Waypoint у DataStore Preferences через вбудований Android org.json.
- * Повністю зберігає Zero-Bloat архітектуру без підключення важких бібліотек.
+ * Повністю зберігає Zero-Bloat архітектуру без підключення важких сторонніх бібліотек.
  */
 class WaypointPreferences(private val context: Context) {
 
