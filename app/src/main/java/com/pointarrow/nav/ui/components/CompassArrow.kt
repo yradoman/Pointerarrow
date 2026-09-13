@@ -1,17 +1,17 @@
 package com.pointarrow.nav.ui.components
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -21,73 +21,106 @@ fun CompassArrow(
     targetAngle: Float,
     isTargetReached: Boolean,
     modifier: Modifier = Modifier,
-    arrowSize: Dp = 290.dp,
+    arrowSize: Dp = 280.dp,
     arrowColor: Color = Color(0xFF00E676),
-    accentColor: Color = Color(0xFF1B5E20)
+    accentColor: Color = Color(0xFF00C853)
 ) {
-    val animatedRotation = remember { Animatable(targetAngle) }
-
-    LaunchedEffect(targetAngle) {
-        var diff = (targetAngle - (animatedRotation.value % 360f)) % 360f
-        if (diff > 180f) diff -= 360f
-        if (diff < -180f) diff += 360f
-
-        val target = animatedRotation.value + diff
-        animatedRotation.animateTo(
-            targetValue = target,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessLow
-            )
-        )
-    }
+    val animatedAngle by animateFloatAsState(
+        targetValue = targetAngle,
+        animationSpec = tween(durationMillis = 100),
+        label = "ArrowRotation"
+    )
 
     Canvas(modifier = modifier.size(arrowSize)) {
-        val centerX = size.width / 2f
-        val centerY = size.height / 2f
-        val radius = this.size.minDimension * 0.43f
+        val w = size.width
+        val h = size.height
+        val cx = w / 2f
+        val cy = h / 2f
+        val radius = (minOf(w, h) / 2f) - 10f
 
-        rotate(animatedRotation.value, pivot = Offset(centerX, centerY)) {
-            val primaryNeedleColor = if (isTargetReached) Color(0xFF00E676) else arrowColor
+        // Зовнішнє фонове кільце компаса (AMOLED Dark)
+        drawCircle(
+            color = Color(0xFF111111),
+            radius = radius,
+            center = Offset(cx, cy),
+            style = Stroke(width = 3.dp.toPx())
+        )
 
-            // Ліва грань передньої стрілки
-            val frontLeft = Path().apply {
-                moveTo(centerX, centerY - radius)
-                lineTo(centerX - radius * 0.26f, centerY + radius * 0.12f)
-                lineTo(centerX, centerY)
-                close()
+        // 12 секторних маркерів на лімбі
+        for (i in 0 until 12) {
+            val tickAngle = i * 30f
+            val isCardinal = i % 3 == 0
+            val tickLength = if (isCardinal) 14.dp.toPx() else 8.dp.toPx()
+            val tickColor = if (isCardinal) Color(0xFF444444) else Color(0xFF222222)
+            val strokeW = if (isCardinal) 2.5.dp.toPx() else 1.5.dp.toPx()
+
+            rotate(tickAngle, pivot = Offset(cx, cy)) {
+                drawLine(
+                    color = tickColor,
+                    start = Offset(cx, cy - radius),
+                    end = Offset(cx, cy - radius + tickLength),
+                    strokeWidth = strokeW
+                )
             }
-            drawPath(frontLeft, color = primaryNeedleColor)
-
-            // Права грань передньої стрілки (трохи темніша для 3D/рельєфності граней)
-            val frontRight = Path().apply {
-                moveTo(centerX, centerY - radius)
-                lineTo(centerX + radius * 0.26f, centerY + radius * 0.12f)
-                lineTo(centerX, centerY)
-                close()
-            }
-            drawPath(frontRight, color = primaryNeedleColor.copy(alpha = 0.82f))
-
-            // Хвостова противага
-            val tailLeft = Path().apply {
-                moveTo(centerX, centerY)
-                lineTo(centerX - radius * 0.19f, centerY + radius * 0.25f)
-                lineTo(centerX, centerY + radius * 0.65f)
-                close()
-            }
-            drawPath(tailLeft, color = accentColor)
-
-            val tailRight = Path().apply {
-                moveTo(centerX, centerY)
-                lineTo(centerX + radius * 0.19f, centerY + radius * 0.25f)
-                lineTo(centerX, centerY + radius * 0.65f)
-                close()
-            }
-            drawPath(tailRight, color = accentColor.copy(alpha = 0.70f))
-
-            // Центральна шпилька
-            drawCircle(color = Color.Black, radius = radius * 0.10f, center = Offset(centerX, centerY))
-            drawCircle(color = primaryNeedleColor, radius = radius * 0.045f, center = Offset(centerX, centerY))
         }
+
+        // Центральна стрілка
+        rotate(degrees = animatedAngle, pivot = Offset(cx, cy)) {
+            val arrowLength = radius * 0.88f
+            val halfBaseWidth = radius * 0.38f
+            val notchDepth = radius * 0.22f
+
+            val tipY = cy - arrowLength
+            val leftX = cx - halfBaseWidth
+            val rightX = cx + halfBaseWidth
+            val baseY = cy + (arrowLength * 0.55f)
+            val notchY = baseY - notchDepth
+
+            // Ліва грань (NeonGreen)
+            val leftPath = Path().apply {
+                moveTo(cx, tipY)
+                lineTo(leftX, baseY)
+                lineTo(cx, notchY)
+                close()
+            }
+            drawPath(
+                path = leftPath,
+                color = if (isTargetReached) Color(0xFF76FF03) else arrowColor,
+                style = Fill
+            )
+
+            // Права грань (більш темний відтінок для 2D-об'єму)
+            val rightPath = Path().apply {
+                moveTo(cx, tipY)
+                lineTo(rightX, baseY)
+                lineTo(cx, notchY)
+                close()
+            }
+            drawPath(
+                path = rightPath,
+                color = if (isTargetReached) Color(0xFF64DD17) else accentColor,
+                style = Fill
+            )
+
+            // Центральна розділювальна лінія для чіткості
+            drawLine(
+                color = Color(0xFF000000),
+                start = Offset(cx, tipY),
+                end = Offset(cx, notchY),
+                strokeWidth = 2.dp.toPx()
+            )
+        }
+
+        // Центральна точка кріплення
+        drawCircle(
+            color = Color(0xFF000000),
+            radius = 6.dp.toPx(),
+            center = Offset(cx, cy)
+        )
+        drawCircle(
+            color = arrowColor,
+            radius = 3.dp.toPx(),
+            center = Offset(cx, cy)
+        )
     }
 }

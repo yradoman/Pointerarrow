@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.pointarrow.nav.data.location.GpsLocationSource
 import com.pointarrow.nav.data.model.TargetPoint
+import com.pointarrow.nav.data.model.Waypoint
 import com.pointarrow.nav.data.repository.TargetRepository
+import com.pointarrow.nav.data.repository.WaypointRepository
 import com.pointarrow.nav.data.sensor.OrientationSensorSource
 import com.pointarrow.nav.domain.engine.NavigationEngine
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -22,6 +24,7 @@ import java.util.Locale
 
 class MainViewModel(
     private val targetRepository: TargetRepository,
+    private val waypointRepository: WaypointRepository,
     gpsLocationSource: GpsLocationSource,
     orientationSensorSource: OrientationSensorSource,
     private val navigationEngine: NavigationEngine
@@ -29,6 +32,14 @@ class MainViewModel(
 
     private val _userMessage = MutableSharedFlow<String>()
     val userMessage: SharedFlow<String> = _userMessage.asSharedFlow()
+
+    // Потік збережених точок з DataStore
+    val waypoints: StateFlow<List<Waypoint>> = waypointRepository.getWaypoints()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     // Об'єднання потоків GPS, сенсора орієнтації та цільової точки
     val uiState: StateFlow<NavigationUiState> = combine(
@@ -108,13 +119,43 @@ class MainViewModel(
 
         if (lat == null || lon == null) {
             viewModelScope.launch {
-                _userMessage.emit("Немає фіксації GPS для збереження поточної позиції")
+                _userMessage.emit("Немає фіксації GPS для встановлення цілі")
             }
             return
         }
 
         val timeString = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
         setTargetPoint(name = "Точка $timeString", lat = lat, lon = lon, alt = alt)
+    }
+
+    fun saveWaypoint(name: String, lat: Double, lon: Double, alt: Double? = null) {
+        viewModelScope.launch {
+            val wp = Waypoint(
+                name = name.trim().ifEmpty { "Точка" },
+                latitude = lat,
+                longitude = lon,
+                altitude = alt,
+                timestamp = System.currentTimeMillis()
+            )
+            waypointRepository.saveWaypoint(wp)
+            _userMessage.emit("Точку '${wp.name}' збережено")
+        }
+    }
+
+    fun deleteWaypoint(id: String) {
+        viewModelScope.launch {
+            waypointRepository.deleteWaypoint(id)
+            _userMessage.emit("Точку видалено")
+        }
+    }
+
+    fun navigateToWaypoint(waypoint: Waypoint) {
+        setTargetPoint(
+            name = waypoint.name,
+            lat = waypoint.latitude,
+            lon = waypoint.longitude,
+            alt = waypoint.altitude
+        )
     }
 
     fun clearTarget() {

@@ -79,11 +79,13 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
 
-    // DataStore Preferences (Zero-Bloat: direct primitive keys, no JSON/Room)
+    // DataStore Preferences (Zero-Bloat JSON storage, zero external heavy dependencies)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
-    debugImplementation("androidx.compose.ui:ui-tooling")
+    // Unit Testing
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
 }

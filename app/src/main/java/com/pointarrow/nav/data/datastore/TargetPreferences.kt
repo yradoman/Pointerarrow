@@ -10,12 +10,11 @@ import com.pointarrow.nav.data.model.TargetPoint
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-private val Context.dataStore by preferencesDataStore(name = "pointarrow_target_prefs")
+private val Context.targetDataStore by preferencesDataStore(name = "pointarrow_target_prefs")
 
 /**
  * Zero-Bloat DataStore Preferences:
- * Зберігає лише ОДНУ поточну цільову точку через примітивні ключі.
- * Ніяких масивів, списків чи важких файлів JSON/Room.
+ * Зберігає поточну активну цільову точку для навігаційної стрілки.
  */
 class TargetPreferences(private val context: Context) {
 
@@ -27,7 +26,7 @@ class TargetPreferences(private val context: Context) {
         private val KEY_TARGET_ALT = doublePreferencesKey("target_alt")
     }
 
-    val targetPointFlow: Flow<TargetPoint?> = context.dataStore.data.map { prefs ->
+    val targetPointFlow: Flow<TargetPoint?> = context.targetDataStore.data.map { prefs ->
         val hasTarget = prefs[KEY_HAS_TARGET] == true
         if (!hasTarget) return@map null
 
@@ -45,7 +44,7 @@ class TargetPreferences(private val context: Context) {
     }
 
     suspend fun saveTarget(target: TargetPoint) {
-        context.dataStore.edit { prefs ->
+        context.targetDataStore.edit { prefs ->
             prefs[KEY_HAS_TARGET] = true
             prefs[KEY_TARGET_NAME] = target.name
             prefs[KEY_TARGET_LAT] = target.latitude
@@ -59,7 +58,7 @@ class TargetPreferences(private val context: Context) {
     }
 
     suspend fun clearTarget() {
-        context.dataStore.edit { prefs ->
+        context.targetDataStore.edit { prefs ->
             prefs[KEY_HAS_TARGET] = false
             prefs.remove(KEY_TARGET_NAME)
             prefs.remove(KEY_TARGET_LAT)

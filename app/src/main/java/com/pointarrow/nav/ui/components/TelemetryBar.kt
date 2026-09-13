@@ -16,7 +16,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.pointarrow.nav.ui.main.HeadingSource
+import com.pointarrow.nav.domain.engine.HeadingSource
 import com.pointarrow.nav.ui.theme.DarkSurface
 import com.pointarrow.nav.ui.theme.NeonGreen
 import com.pointarrow.nav.ui.theme.TextPrimary
@@ -35,76 +35,70 @@ fun TelemetryBar(
         modifier = modifier
             .fillMaxWidth()
             .background(DarkSurface, RoundedCornerShape(12.dp))
-            .padding(vertical = 10.dp, horizontal = 14.dp),
+            .padding(vertical = 12.dp, horizontal = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        TelemetryItem(
-            label = "ШВИДКІСТЬ",
-            value = String.format(Locale.US, "%.1f", speedKmh),
-            unit = "км/г",
-            valueColor = if (speedKmh > 3.3f) NeonGreen else TextPrimary
-        )
-
-        TelemetryItem(
-            label = "ВИСОТА",
-            value = currentAltitudeMeters?.let { String.format(Locale.US, "%.0f", it) } ?: "--",
-            unit = "м"
-        )
-
-        TelemetryItem(
-            label = "ТОЧНІСТЬ",
-            value = gpsAccuracyMeters?.let { String.format(Locale.US, "±%.0f", it) } ?: "--",
-            unit = "м",
-            valueColor = when {
-                gpsAccuracyMeters == null -> TextSecondary
-                gpsAccuracyMeters <= 10f -> NeonGreen
-                gpsAccuracyMeters <= 30f -> Color(0xFFFFB74D)
-                else -> Color(0xFFFF5252)
-            }
-        )
-
-        TelemetryItem(
-            label = "СЕНСОР",
-            value = if (headingSource == HeadingSource.GPS_COG) "GPS" else "ROT.V",
-            unit = "",
-            valueColor = if (headingSource == HeadingSource.GPS_COG) NeonGreen else Color(0xFFFFB74D)
-        )
-    }
-}
-
-@Composable
-private fun TelemetryItem(
-    label: String,
-    value: String,
-    unit: String,
-    valueColor: Color = TextPrimary
-) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = label,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextSecondary,
-            letterSpacing = 1.sp,
-            fontFamily = FontFamily.Monospace
-        )
-        Row(verticalAlignment = Alignment.Bottom) {
+        // Швидкість руху
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = value,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = valueColor,
-                fontFamily = FontFamily.Monospace
+                text = "ШВИДКІСТЬ",
+                color = TextSecondary,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
             )
-            if (unit.isNotEmpty()) {
-                Text(
-                    text = " $unit",
-                    fontSize = 10.sp,
-                    color = TextSecondary,
-                    fontFamily = FontFamily.Monospace
-                )
+            Text(
+                text = String.format(Locale.US, "%.1f км/г", speedKmh),
+                color = TextPrimary,
+                fontSize = 14.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        // Висота над рівнем моря
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "ВИСОТА",
+                color = TextSecondary,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+            val altText = currentAltitudeMeters?.let {
+                String.format(Locale.US, "%.0f м", it)
+            } ?: "-- м"
+            Text(
+                text = altText,
+                color = TextPrimary,
+                fontSize = 14.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        // Джерело курсу (GPS або Магнітометр)
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "КУРС",
+                color = TextSecondary,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+            val (sourceText, sourceColor) = when (headingSource) {
+                HeadingSource.GPS_BEARING -> Pair("GPS", NeonGreen)
+                HeadingSource.COMPASS_SENSOR -> Pair("КОМПАС", Color(0xFF64B5F6))
+                HeadingSource.NONE -> Pair("--", TextSecondary)
             }
+            Text(
+                text = sourceText,
+                color = sourceColor,
+                fontSize = 14.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

@@ -1,38 +1,42 @@
 package com.pointarrow.nav.domain.filter
 
-import kotlin.math.abs
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
- * Circular Low Pass Filter з Deadband (0.45°).
- * Розраховує найкоротший кутовий шлях (без стрибків на межі 359° <-> 0°).
+ * Циклічний фільтр низьких частот для кутів у діапазоні [0, 360).
+ * Запобігає ривкам стрілки при переході через північ (0° <-> 359°).
  */
 class CircularLowPassFilter(
-    private val alpha: Float = 0.20f,
-    private val deadbandDegrees: Float = 0.45f
+    private val alpha: Float = 0.15f
 ) {
-    private var currentFilteredAngle: Float? = null
+    private var smoothedSin = 0f
+    private var smoothedCos = 0f
+    private var isInitialized = false
 
-    fun filter(newAngleDegrees: Float): Float {
-        val current = currentFilteredAngle ?: run {
-            currentFilteredAngle = newAngleDegrees
-            return newAngleDegrees
+    fun filter(targetAngleDegrees: Float): Float {
+        val rad = Math.toRadians(targetAngleDegrees.toDouble()).toFloat()
+        val currentSin = sin(rad)
+        val currentCos = cos(rad)
+
+        if (!isInitialized) {
+            smoothedSin = currentSin
+            smoothedCos = currentCos
+            isInitialized = true
+        } else {
+            smoothedSin += alpha * (currentSin - smoothedSin)
+            smoothedCos += alpha * (currentCos - smoothedCos)
         }
 
-        var delta = (newAngleDegrees - current) % 360f
-        if (delta > 180f) delta -= 360f
-        if (delta < -180f) delta += 360f
-
-        if (abs(delta) < deadbandDegrees) {
-            return current
-        }
-
-        var smoothed = current + alpha * delta
-        smoothed = (smoothed % 360f + 360f) % 360f
-        currentFilteredAngle = smoothed
-        return smoothed
+        var smoothedAngle = Math.toDegrees(atan2(smoothedSin.toDouble(), smoothedCos.toDouble())).toFloat()
+        if (smoothedAngle < 0f) smoothedAngle += 360f
+        return smoothedAngle
     }
 
     fun reset() {
-        currentFilteredAngle = null
+        isInitialized = false
+        smoothedSin = 0f
+        smoothedCos = 0f
     }
 }

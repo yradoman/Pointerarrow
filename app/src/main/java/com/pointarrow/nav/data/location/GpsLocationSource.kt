@@ -27,7 +27,7 @@ class GpsLocationSource(private val context: Context) {
     private val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
     @SuppressLint("MissingPermission")
-    val locationFlow: Flow<GpsUpdate?> = callbackFlow {
+    val locationFlow: Flow<GpsUpdate?> = callbackFlow<GpsUpdate?> {
         val listener = object : LocationListener {
             override fun onLocationChanged(location: Location) {
                 val update = GpsUpdate(
@@ -46,7 +46,9 @@ class GpsLocationSource(private val context: Context) {
             @Deprecated("Deprecated in Java")
             override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
             override fun onProviderEnabled(provider: String) {}
-            override fun onProviderDisabled(provider: String) {}
+            override fun onProviderDisabled(provider: String) {
+                trySend(null)
+            }
         }
 
         val minTimeMs = 500L

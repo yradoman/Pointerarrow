@@ -2,23 +2,27 @@ package com.pointarrow.nav.domain.engine
 
 import com.pointarrow.nav.domain.filter.CircularLowPassFilter
 import com.pointarrow.nav.domain.math.GeoMath
-import com.pointarrow.nav.ui.main.HeadingSource
+
+enum class HeadingSource {
+    GPS_BEARING,
+    COMPASS_SENSOR,
+    NONE
+}
 
 data class NavigationResult(
-    val arrowAngle: Float,
     val distanceMeters: Float?,
     val deltaAltitudeMeters: Double?,
-    val headingSource: HeadingSource,
+    val arrowAngle: Float,
     val speedKmh: Float,
-    val bearingToTarget: Float?
+    val headingSource: HeadingSource
 )
 
-class NavigationEngine {
-    private val compassFilter = CircularLowPassFilter(alpha = 0.22f, deadbandDegrees = 0.45f)
-    private val gpsCogFilter = CircularLowPassFilter(alpha = 0.35f, deadbandDegrees = 0.45f)
-    private val finalArrowFilter = CircularLowPassFilter(alpha = 0.25f, deadbandDegrees = 0.45f)
-
-    private var currentHeadingSource = HeadingSource.COMPASS
+class NavigationEngine(
+    private val lowPassFilter: CircularLowPassFilter = CircularLowPassFilter(alpha = 0.18f)
+) {
+    companion object {
+        const val SPEED_THRESHOLD_MPS = 0.833f // 3.0 км/год
+    }
 
     fun computeNavigation(
         currentLat: Double?,
@@ -27,72 +31,64 @@ class NavigationEngine {
         speedMetersPerSec: Float,
         gpsBearing: Float?,
         hasGpsBearing: Boolean,
-        compassAzimuth: Float,
+        compassAzimuth: Float?,
         targetLat: Double?,
         targetLon: Double?,
         targetAlt: Double?
     ): NavigationResult {
         val speedKmh = speedMetersPerSec * 3.6f
 
-        // Гістерезис 0.6 км/год:
-        // Швидкість < 2.7 км/год -> Sensor.TYPE_ROTATION_VECTOR
-        // Швидкість > 3.3 км/год -> GPS Course Over Ground (Location.getBearing())
-        currentHeadingSource = when {
-            speedKmh > 3.3f && hasGpsBearing && gpsBearing != null -> HeadingSource.GPS_COG
-            speedKmh < 2.7f -> HeadingSource.COMPASS
-            else -> currentHeadingSource
+        if (currentLat == null || currentLon == null || targetLat == null || targetLon == null) {
+            return NavigationResult(
+                distanceMeters = null,
+                deltaAltitudeMeters = null,
+                arrowAngle = 0f,
+                speedKmh = speedKmh,
+                headingSource = HeadingSource.NONE
+            )
         }
 
-        val deviceHeading = if (currentHeadingSource == HeadingSource.GPS_COG && gpsBearing != null) {
-            gpsCogFilter.filter(gpsBearing)
+        val distanceMeters = GeoMath.calculateDistanceMeters(
+            lat1 = currentLat,
+            lon1 = currentLon,
+            lat2 = targetLat,
+            lon2 = targetLon
+        )
+
+        val bearingToTarget = GeoMath.calculateBearingDegrees(
+            lat1 = currentLat,
+            lon1 = currentLon,
+            lat2 = targetLat,
+            lon2 = targetLon
+        )
+
+        val (deviceHeading, headingSource) = if (speedMetersPerSec > SPEED_THRESHOLD_MPS && hasGpsBearing && gpsBearing != null) {
+            Pair(gpsBearing, HeadingSource.GPS_BEARING)
+        } else if (compassAzimuth != null) {
+            Pair(compassAzimuth, HeadingSource.COMPASS_SENSOR)
         } else {
-            compassFilter.filter(compassAzimuth)
+            Pair(0f, HeadingSource.NONE)
         }
 
-        // Обчислення Delta h = h_цілі - h_поточна
-        val deltaAltitude = if (targetAlt != null && currentAlt != null) {
+        val rawArrowAngle = GeoMath.normalizeAngle360(bearingToTarget - deviceHeading)
+        val filteredArrowAngle = lowPassFilter.filter(rawArrowAngle)
+
+        val deltaAltitude = if (currentAlt != null && targetAlt != null) {
             targetAlt - currentAlt
         } else {
             null
         }
 
-        if (currentLat == null || currentLon == null || targetLat == null || targetLon == null) {
-            return NavigationResult(
-                arrowAngle = 0f,
-                distanceMeters = null,
-                deltaAltitudeMeters = deltaAltitude,
-                headingSource = currentHeadingSource,
-                speedKmh = speedKmh,
-                bearingToTarget = null
-            )
-        }
-
-        val distance = GeoMath.calculateDistanceMeters(
-            lat1 = currentLat, lon1 = currentLon,
-            lat2 = targetLat, lon2 = targetLon
-        )
-
-        val bearingToTarget = GeoMath.calculateBearing(
-            lat1 = currentLat, lon1 = currentLon,
-            lat2 = targetLat, lon2 = targetLon
-        )
-
-        val rawArrowAngle = GeoMath.normalizeDegrees(bearingToTarget - deviceHeading)
-        val smoothedArrowAngle = finalArrowFilter.filter(rawArrowAngle)
-
         return NavigationResult(
-            arrowAngle = smoothedArrowAngle,
-            distanceMeters = distance,
+            distanceMeters = distanceMeters,
             deltaAltitudeMeters = deltaAltitude,
-            headingSource = currentHeadingSource,
+            arrowAngle = filteredArrowAngle,
             speedKmh = speedKmh,
-            bearingToTarget = bearingToTarget
+            headingSource = headingSource
         )
     }
 
     fun reset() {
-        compassFilter.reset()
-        gpsCogFilter.reset()
-        finalArrowFilter.reset()
+        lowPassFilter.reset()
     }
 }

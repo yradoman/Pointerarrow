@@ -114,23 +114,19 @@ fun SetTargetDialog(
             OutlinedTextField(
                 value = altText,
                 onValueChange = { altText = it },
-                label = { Text("Висота над рівнем моря (м, опціонально)") },
+                label = { Text("Висота в метрах (необов'язково)") },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 colors = fieldColors,
                 singleLine = true
             )
 
-            if (errorMessage != null) {
+            errorMessage?.let {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = errorMessage ?: "",
-                    color = Color(0xFFFF5252),
-                    fontSize = 12.sp
-                )
+                Text(text = it, color = Color(0xFFFF5252), fontSize = 12.sp)
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -138,6 +134,7 @@ fun SetTargetDialog(
             ) {
                 OutlinedButton(
                     onClick = onDismiss,
+                    shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
                 ) {
                     Text("Скасувати")
@@ -147,24 +144,26 @@ fun SetTargetDialog(
 
                 Button(
                     onClick = {
-                        val lat = latText.replace(',', '.').toDoubleOrNull()
-                        val lon = lonText.replace(',', '.').toDoubleOrNull()
-                        val alt = altText.replace(',', '.').toDoubleOrNull()
+                        val lat = latText.toDoubleOrNull()
+                        val lon = lonText.toDoubleOrNull()
+                        val alt = altText.toDoubleOrNull()
 
                         if (lat == null || lat < -90.0 || lat > 90.0) {
-                            errorMessage = "Вкажіть коректну широту від -90 до 90"
+                            errorMessage = "Введіть коректну широту від -90 до 90"
                             return@Button
                         }
                         if (lon == null || lon < -180.0 || lon > 180.0) {
-                            errorMessage = "Вкажіть коректну довготу від -180 до 180"
+                            errorMessage = "Введіть коректну довготу від -180 до 180"
                             return@Button
                         }
 
-                        onSave(name.ifEmpty { "Ціль" }, lat, lon, alt)
+                        errorMessage = null
+                        onSave(name.trim().ifEmpty { "Ціль" }, lat, lon, alt)
                     },
+                    shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = NeonGreen, contentColor = PureBlack)
                 ) {
-                    Text("Зберегти", fontWeight = FontWeight.Bold)
+                    Text("Встановити", fontWeight = FontWeight.Bold)
                 }
             }
         }
