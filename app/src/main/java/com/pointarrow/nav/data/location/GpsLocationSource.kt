@@ -27,7 +27,7 @@ class GpsLocationSource(private val context: Context) {
     private val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
     @SuppressLint("MissingPermission")
-    val locationFlow: Flow<GpsUpdate?> = callbackFlow {
+    val locationFlow: Flow<GpsUpdate?> = callbackFlow<GpsUpdate?> {
         val listener = object : LocationListener {
             override fun onLocationChanged(location: Location) {
                 val update = GpsUpdate(
