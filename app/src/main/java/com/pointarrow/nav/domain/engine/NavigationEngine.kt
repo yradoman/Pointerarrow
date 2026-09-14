@@ -21,8 +21,10 @@ class NavigationEngine(
     private val lowPassFilter: CircularLowPassFilter = CircularLowPassFilter(alpha = 0.18f)
 ) {
     companion object {
-        const val SPEED_THRESHOLD_MPS = 0.833f // 3.0 км/год
+        const val SPEED_THRESHOLD_MPS = 0.8f // > 0.8 м/с (~2.88 км/год)
     }
+
+    private var lastGpsHeading: Float? = null
 
     fun computeNavigation(
         currentLat: Double?,
@@ -32,6 +34,7 @@ class NavigationEngine(
         gpsBearing: Float?,
         hasGpsBearing: Boolean,
         compassAzimuth: Float?,
+        hasCompassSensor: Boolean,
         targetLat: Double?,
         targetLon: Double?,
         targetAlt: Double?
@@ -62,15 +65,27 @@ class NavigationEngine(
             lon2 = targetLon
         )
 
-        val (deviceHeading, headingSource) = if (speedMetersPerSec > SPEED_THRESHOLD_MPS && hasGpsBearing && gpsBearing != null) {
-            Pair(gpsBearing, HeadingSource.GPS_BEARING)
-        } else if (compassAzimuth != null) {
+        val (deviceHeading, headingSource) = if (hasCompassSensor && compassAzimuth != null) {
+            // Режим компаса: азимут магнітометра + акселерометра
             Pair(compassAzimuth, HeadingSource.COMPASS_SENSOR)
         } else {
-            Pair(0f, HeadingSource.NONE)
+            // Режим відсутності компаса (тільки GPS під час руху > 0.8 м/с)
+            if (speedMetersPerSec > SPEED_THRESHOLD_MPS && hasGpsBearing && gpsBearing != null) {
+                lastGpsHeading = gpsBearing
+                Pair(gpsBearing, HeadingSource.GPS_BEARING)
+            } else if (lastGpsHeading != null) {
+                // Фіксуємо останній відомий GPS-курс під час зупинки, щоб уникнути сіпання
+                Pair(lastGpsHeading!!, HeadingSource.GPS_BEARING)
+            } else {
+                Pair(0f, HeadingSource.NONE)
+            }
         }
 
-        val rawArrowAngle = GeoMath.normalizeAngle360(bearingToTarget - deviceHeading)
+        val rawArrowAngle = if (headingSource != HeadingSource.NONE) {
+            GeoMath.normalizeAngle360(bearingToTarget - deviceHeading)
+        } else {
+            0f
+        }
         val filteredArrowAngle = lowPassFilter.filter(rawArrowAngle)
 
         val deltaAltitude = if (currentAlt != null && targetAlt != null) {
@@ -90,5 +105,6 @@ class NavigationEngine(
 
     fun reset() {
         lowPassFilter.reset()
+        lastGpsHeading = null
     }
 }

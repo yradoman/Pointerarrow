@@ -1,4 +1,4 @@
-name: Android CI Build
+name: PointArrow CI Build
 
 on:
   push:
@@ -8,10 +8,11 @@ on:
 
 jobs:
   build:
+    name: Build & Verify APK
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
 
     - name: Set up JDK 17
@@ -24,8 +25,15 @@ jobs:
     - name: Make gradlew executable
       run: chmod +x gradlew
 
-    - name: Build with Gradle
+    - name: Build Debug APK with Gradle
       run: ./gradlew assembleDebug --stacktrace
 
     - name: Run Unit Tests
       run: ./gradlew testDebugUnitTest
+
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: pointarrow-debug-apk
+        path: app/build/outputs/apk/debug/*.apk
+        if-no-files-found: ignore

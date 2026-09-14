@@ -26,7 +26,7 @@ class MainViewModel(
     private val targetRepository: TargetRepository,
     private val waypointRepository: WaypointRepository,
     gpsLocationSource: GpsLocationSource,
-    orientationSensorSource: OrientationSensorSource,
+    private val orientationSensorSource: OrientationSensorSource,
     private val navigationEngine: NavigationEngine
 ) : ViewModel() {
 
@@ -67,6 +67,7 @@ class MainViewModel(
             gpsBearing = gpsBearing,
             hasGpsBearing = hasGpsBearing,
             compassAzimuth = sensorAzimuth,
+            hasCompassSensor = orientationSensorSource.hasCompass,
             targetLat = targetLat,
             targetLon = targetLon,
             targetAlt = targetAlt
@@ -85,12 +86,13 @@ class MainViewModel(
             currentLongitude = currentLon,
             isGpsLocked = gpsUpdate != null && (gpsUpdate.accuracy <= 30f),
             headingSource = navResult.headingSource,
-            isTrackingActive = true
+            isTrackingActive = true,
+            hasCompassSensor = orientationSensorSource.hasCompass
         )
     }
     // Render Throttling (30 FPS) для захисту CPU/GPU від надлишкових рекомпозицій
     .sample(33L)
-    // Життєвий цикл: вимикати сенсори та GPS через 5 секунд після згортання додатка
+    // Життєвий цикл: коректно відписувати сенсори через 5 секунд після згортання додатку
     .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),

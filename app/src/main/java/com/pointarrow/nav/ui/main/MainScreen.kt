@@ -90,6 +90,28 @@ fun MainScreen(
                 )
             }
 
+            // Застереження при відсутності компаса (тільки якщо датчик відсутній)
+            if (uiState.showNoCompassWarning) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF231C05), RoundedCornerShape(8.dp))
+                        .border(1.dp, Color(0xFFFFB300).copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "⚠️ Компас відсутній. Почніть рух, щоб стрілка вказала напрямок",
+                        color = Color(0xFFFFD54F),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        lineHeight = 16.sp
+                    )
+                }
+            }
+
             // Центральна зона: стрілка або підказка + індикатор різниці висот
             Box(
                 modifier = Modifier

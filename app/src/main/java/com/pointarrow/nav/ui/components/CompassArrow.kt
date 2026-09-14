@@ -1,11 +1,16 @@
 package com.pointarrow.nav.ui.components
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -25,9 +30,19 @@ fun CompassArrow(
     arrowColor: Color = Color(0xFF00E676),
     accentColor: Color = Color(0xFF00C853)
 ) {
+    // Неперервне згладжування кута для уникнення повного оберту при переході через 0°/360°
+    var accumulatedAngle by remember { mutableFloatStateOf(targetAngle) }
+
+    LaunchedEffect(targetAngle) {
+        var diff = (targetAngle - (accumulatedAngle % 360f))
+        if (diff > 180f) diff -= 360f
+        if (diff < -180f) diff += 360f
+        accumulatedAngle += diff
+    }
+
     val animatedAngle by animateFloatAsState(
-        targetValue = targetAngle,
-        animationSpec = tween(durationMillis = 100),
+        targetValue = accumulatedAngle,
+        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
         label = "ArrowRotation"
     )
 
