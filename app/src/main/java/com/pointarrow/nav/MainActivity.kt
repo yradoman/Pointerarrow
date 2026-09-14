@@ -71,8 +71,10 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        try {
+            enableEdgeToEdge()
+        } catch (_: Exception) {}
 
         setContent {
             PointArrowTheme {
@@ -107,8 +109,13 @@ fun PointArrowAppContent(viewModel: MainViewModel) {
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        hasFineLocation = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
-        hasCoarseLocation = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        hasFineLocation = fineGranted
+        hasCoarseLocation = coarseGranted
+        if (fineGranted || coarseGranted) {
+            viewModel.refreshLocation()
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -267,24 +274,21 @@ fun PointArrowAppContent(viewModel: MainViewModel) {
         )
     }
 
-    val currentLat = uiState.currentLatitude
-    val currentLon = uiState.currentLongitude
-
-    if (isSaveWaypointDialogOpen && currentLat != null && currentLon != null) {
+    if (isSaveWaypointDialogOpen && uiState.currentLatitude != null && uiState.currentLongitude != null) {
         val timeString = remember {
             SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
         }
         SaveWaypointDialog(
-            latitude = currentLat,
-            longitude = currentLon,
+            latitude = uiState.currentLatitude!!,
+            longitude = uiState.currentLongitude!!,
             altitude = uiState.currentAltitudeMeters,
             defaultName = "Точка $timeString",
             onDismiss = { isSaveWaypointDialogOpen = false },
             onSave = { name ->
                 viewModel.saveWaypoint(
                     name = name,
-                    lat = currentLat,
-                    lon = currentLon,
+                    lat = uiState.currentLatitude!!,
+                    lon = uiState.currentLongitude!!,
                     alt = uiState.currentAltitudeMeters
                 )
                 isSaveWaypointDialogOpen = false

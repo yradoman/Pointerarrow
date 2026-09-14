@@ -10,20 +10,34 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 
 class OrientationSensorSource(context: Context) {
-    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
 
     // Перевірка наявності магнітометра (апаратного компаса)
-    val hasCompass: Boolean = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD) != null
+    val hasCompass: Boolean = try {
+        sensorManager?.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD) != null
+    } catch (_: Exception) {
+        false
+    }
 
     val orientationFlow: Flow<Float?> = callbackFlow {
-        if (!hasCompass) {
+        val sm = sensorManager
+        if (sm == null || !hasCompass) {
             trySend(null)
             awaitClose {}
             return@callbackFlow
         }
 
-        val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-        val magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+        val accelerometer = try {
+            sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        } catch (_: Exception) {
+            null
+        }
+
+        val magnetometer = try {
+            sm.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+        } catch (_: Exception) {
+            null
+        }
 
         if (accelerometer == null || magnetometer == null) {
             trySend(null)
@@ -77,11 +91,18 @@ class OrientationSensorSource(context: Context) {
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
 
-        sensorManager.registerListener(listener, accelerometer, SensorManager.SENSOR_DELAY_UI)
-        sensorManager.registerListener(listener, magnetometer, SensorManager.SENSOR_DELAY_UI)
+        try {
+            sm.registerListener(listener, accelerometer, SensorManager.SENSOR_DELAY_UI)
+            sm.registerListener(listener, magnetometer, SensorManager.SENSOR_DELAY_UI)
+        } catch (_: Exception) {
+            // Безпечний перехоп у випадку обмежень частоти опитування (HIGH_SAMPLING_RATE_SENSORS)
+            trySend(null)
+        }
 
         awaitClose {
-            sensorManager.unregisterListener(listener)
+            try {
+                sm.unregisterListener(listener)
+            } catch (_: Exception) {}
         }
     }
 }

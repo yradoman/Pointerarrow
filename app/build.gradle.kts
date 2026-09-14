@@ -1,5 +1,3 @@
-// app/build.gradle.kts
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -7,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.pointpointer.nav" // Якщо пакет у коді com.pointarrow.nav — змініть тут відповідно
+    namespace = "com.pointarrow.nav"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.pointpointer.nav"
+        applicationId = "com.pointarrow.nav"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
@@ -25,18 +23,17 @@ android {
 
     buildTypes {
         release {
-            // Вмикаємо стиснення та очищення коду від сміття (R8/ProGuard)
             isMinifyEnabled = true
             isShrinkResources = true
-            
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("debug")
         }
         debug {
-            isMinifyEnabled = false
-            isShrinkResources = false
+            applicationIdSuffix = ".debug"
+            isDebuggable = true
         }
     }
 
@@ -47,10 +44,15 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+        freeCompilerArgs = listOf(
+            "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api"
+        )
     }
 
     buildFeatures {
         compose = true
+        buildConfig = false
     }
 
     packaging {
@@ -61,41 +63,29 @@ android {
 }
 
 dependencies {
-    // AndroidX Core & Activity Integration (для setContent, rememberLauncherForActivityResult)
-    implementation("androidx.core:core-ktx:1.13.1")
+    // Core Android & Lifecycle (with collectAsStateWithLifecycle)
+    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.activity:activity-compose:1.9.3")
 
-    // Lifecycle & ViewModel (для viewModels, viewModel())
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
-
-    // Jetpack Compose (BOM)
-    val composeBom = platform("androidx.compose:compose-bom:2024.09.03")
+    // Jetpack Compose (BOM 2024.12.01)
+    val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
-    androidTestImplementation(composeBom)
-
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-
-    // Extended Icons (для BookmarkAdd, MyLocation, AddLocationAlt, DeleteOutline, NearMe)
     implementation("androidx.compose.material:material-icons-extended")
 
-    // DataStore Preferences (для TargetPreferences та WaypointPreferences)
+    // DataStore Preferences (Zero-Bloat JSON storage, zero external heavy dependencies)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
-    // Google Play Services (GPS Location)
-    implementation("com.google.android.gms:play-services-location:21.3.0")
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
-    // Testing
+    // Unit Testing
     testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    
-    // Tooling
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
 }

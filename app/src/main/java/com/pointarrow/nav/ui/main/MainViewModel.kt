@@ -25,7 +25,7 @@ import java.util.Locale
 class MainViewModel(
     private val targetRepository: TargetRepository,
     private val waypointRepository: WaypointRepository,
-    gpsLocationSource: GpsLocationSource,
+    private val gpsLocationSource: GpsLocationSource,
     private val orientationSensorSource: OrientationSensorSource,
     private val navigationEngine: NavigationEngine
 ) : ViewModel() {
@@ -47,7 +47,6 @@ class MainViewModel(
         orientationSensorSource.orientationFlow,
         targetRepository.targetPointFlow
     ) { gpsUpdate, sensorAzimuth, targetPoint ->
-
         val currentLat = gpsUpdate?.latitude
         val currentLon = gpsUpdate?.longitude
         val currentAlt = gpsUpdate?.altitude
@@ -98,6 +97,10 @@ class MainViewModel(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = NavigationUiState()
     )
+
+    fun refreshLocation() {
+        gpsLocationSource.refresh()
+    }
 
     fun setTargetPoint(name: String, lat: Double, lon: Double, alt: Double? = null) {
         viewModelScope.launch {
