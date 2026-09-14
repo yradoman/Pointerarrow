@@ -23,12 +23,17 @@ android {
 
     buildTypes {
         release {
+            // Вмикаємо R8 та видалення невикористаних ресурсів
             isMinifyEnabled = true
             isShrinkResources = true
+            isDebuggable = false
+
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+
+            // Автоматичний підпис дебаг-ключем для швидкого встановлення без генерації .jks
             signingConfig = signingConfigs.getByName("debug")
         }
         debug {
@@ -63,7 +68,7 @@ android {
 }
 
 dependencies {
-    // Core Android & Lifecycle (with collectAsStateWithLifecycle)
+    // Core Android & Lifecycle
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
@@ -79,7 +84,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
 
-    // DataStore Preferences (Zero-Bloat JSON storage, zero external heavy dependencies)
+    // DataStore Preferences
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // Coroutines
