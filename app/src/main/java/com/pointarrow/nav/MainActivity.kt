@@ -267,21 +267,24 @@ fun PointArrowAppContent(viewModel: MainViewModel) {
         )
     }
 
-    if (isSaveWaypointDialogOpen && uiState.currentLatitude != null && uiState.currentLongitude != null) {
+    val currentLat = uiState.currentLatitude
+    val currentLon = uiState.currentLongitude
+
+    if (isSaveWaypointDialogOpen && currentLat != null && currentLon != null) {
         val timeString = remember {
             SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
         }
         SaveWaypointDialog(
-            latitude = uiState.currentLatitude!!,
-            longitude = uiState.currentLongitude!,
+            latitude = currentLat,
+            longitude = currentLon,
             altitude = uiState.currentAltitudeMeters,
             defaultName = "Точка $timeString",
             onDismiss = { isSaveWaypointDialogOpen = false },
             onSave = { name ->
                 viewModel.saveWaypoint(
                     name = name,
-                    lat = uiState.currentLatitude!,
-                    lon = uiState.currentLongitude!,
+                    lat = currentLat,
+                    lon = currentLon,
                     alt = uiState.currentAltitudeMeters
                 )
                 isSaveWaypointDialogOpen = false

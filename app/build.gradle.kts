@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.pointpointer.nav"
+    namespace = "com.pointpointer.nav" // Якщо пакет у коді com.pointarrow.nav — змініть тут відповідно
     compileSdk = 35
 
     defaultConfig {
@@ -61,8 +61,11 @@ android {
 }
 
 dependencies {
-    // AndroidX Core & Lifecycle
+    // AndroidX Core & Activity Integration (для setContent, rememberLauncherForActivityResult)
     implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.activity:activity-compose:1.9.3")
+
+    // Lifecycle & ViewModel (для viewModels, viewModel())
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
@@ -76,6 +79,12 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+
+    // Extended Icons (для BookmarkAdd, MyLocation, AddLocationAlt, DeleteOutline, NearMe)
+    implementation("androidx.compose.material:material-icons-extended")
+
+    // DataStore Preferences (для TargetPreferences та WaypointPreferences)
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // Google Play Services (GPS Location)
     implementation("com.google.android.gms:play-services-location:21.3.0")
