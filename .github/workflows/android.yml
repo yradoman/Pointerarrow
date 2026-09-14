@@ -23,16 +23,16 @@ jobs:
 
       - name: Make gradlew executable
         run: chmod +x gradlew
-        
-        - name: Run Tests
+
+      - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --no-daemon
 
-      - name: Build APK
+      - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PointArrow-App
+          name: PointArrow-App-Debug
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 7
