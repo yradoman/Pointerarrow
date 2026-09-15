@@ -21,6 +21,18 @@ android {
         }
     }
 
+    // Додаємо конфігурацію підпису, яку GitHub Actions зможе заповнити секретами
+    signingConfigs {
+        create("release") {
+            if (System.getProperty("org.gradle.project.signingKeyStore") != null) {
+                storeFile = file(System.getProperty("org.gradle.project.signingKeyStore"))
+                storePassword = System.getProperty("org.gradle.project.signingStorePassword")
+                keyAlias = System.getProperty("org.gradle.project.signingKeyAlias")
+                keyPassword = System.getProperty("org.gradle.project.signingKeyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             // Вмикаємо R8 та видалення невикористаних ресурсів
@@ -33,8 +45,12 @@ android {
                 "proguard-rules.pro"
             )
 
-            // Автоматичний підпис дебаг-ключем для швидкого встановлення без генерації .jks
-            signingConfig = signingConfigs.getByName("debug")
+            // Якщо збірка йде на GitHub з ключем — підписуємо релізним, інакше — дебажним
+            if (System.getProperty("org.gradle.project.signingKeyStore") != null) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                signingConfig = signingConfigs.getByName("debug")
+            }
         }
         debug {
             applicationIdSuffix = ".debug"
