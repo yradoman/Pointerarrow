@@ -20,10 +20,10 @@ android {
             useSupportLibrary = true
         }
 
-        // Retain only Ukrainian and English locale resources to strip unused language bloat
+        // Обмеження мовних ресурсів: лише українська та англійська локалі
         resourceConfigurations += setOf("uk", "en")
 
-        // Retain only 64-bit ARM architecture (arm64-v8a) to minimize APK size
+        // NDK ABI фільтрація: зберігаємо лише 64-бітну ARM архітектуру (arm64-v8a)
         ndk {
             abiFilters += setOf("arm64-v8a")
         }
@@ -34,10 +34,16 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             isDebuggable = false
+            // Підпис debug-ключем для можливості негайного встановлення та тестування релізного APK
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        getByName("debug") {
+            // Вимикаємо debuggable прапорець і в дебаг-типі, щоб уникнути ненавмисного створення налагоджувального коду
+            isDebuggable = false
         }
     }
 
@@ -72,7 +78,7 @@ android {
 }
 
 dependencies {
-    // Core Android & Lifecycle (with collectAsStateWithLifecycle)
+    // Core Android & Lifecycle
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
@@ -88,7 +94,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
 
-    // DataStore Preferences (Zero-Bloat JSON storage, zero external heavy dependencies)
+    // DataStore Preferences (Zero-Bloat JSON storage)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // Coroutines
