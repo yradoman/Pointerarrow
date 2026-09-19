@@ -24,7 +24,8 @@ import java.util.Locale
 
 /**
  * Main navigation ViewModel piping GPS, Orientation, and Target through MathHelper & NavigationEngine.
- * Emits isArrived = true when within 8.0 meters of target.
+ * Features optimized non-compass motion tracking with 180° inversion hysteresis,
+ * expanded 3-5m/s location window buffer, and low-speed bearing lock (< 1.0 m/s).
  */
 open class NavigationViewModel(
     protected val targetRepository: TargetRepository,
@@ -45,7 +46,7 @@ open class NavigationViewModel(
             initialValue = emptyList()
         )
 
-    // Main combined UI state flow: GPS + Sensors + Target -> WGS84 + LowPass -> StateFlow
+    // Main combined UI state flow: GPS + Sensors + Target -> WGS84 + Motion Tracker -> StateFlow
     val uiState: StateFlow<NavigationUiState> = combine(
         gpsLocationSource.locationFlow,
         orientationSensorSource.orientationFlow,
@@ -75,7 +76,8 @@ open class NavigationViewModel(
             gpsAccuracyMeters = accuracy,
             targetLat = targetLat,
             targetLon = targetLon,
-            targetAlt = targetAlt
+            targetAlt = targetAlt,
+            currentTimeMs = System.currentTimeMillis()
         )
 
         NavigationUiState(

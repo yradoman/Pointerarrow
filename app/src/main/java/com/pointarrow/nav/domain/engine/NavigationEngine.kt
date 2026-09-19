@@ -18,11 +18,11 @@ data class NavigationResult(
 )
 
 class NavigationEngine(
-    private val alpha: Float = MathHelper.DEFAULT_SMOOTHING_ALPHA
+    private val alpha: Float = MathHelper.DEFAULT_SMOOTHING_ALPHA,
+    private val motionTracker: MathHelper.NonCompassMotionTracker = MathHelper.NonCompassMotionTracker()
 ) {
     private var smoothedArrowAngle: Float = 0f
     private var isAngleInitialized: Boolean = false
-    private var lastGpsHeading: Float? = null
 
     fun computeNavigation(
         currentLat: Double?,
@@ -36,7 +36,8 @@ class NavigationEngine(
         gpsAccuracyMeters: Float? = null,
         targetLat: Double?,
         targetLon: Double?,
-        targetAlt: Double?
+        targetAlt: Double?,
+        currentTimeMs: Long = System.currentTimeMillis()
     ): NavigationResult {
         val speedKmh = speedMetersPerSec * 3.6f
 
@@ -51,7 +52,7 @@ class NavigationEngine(
             )
         }
 
-        // 1. WGS-84 geodesic calculation via MathHelper (ellipsoid model)
+        // 1. WGS-84 Geodesic route calculation
         val route = MathHelper.calculateWGS84Route(
             startLat = currentLat,
             startLon = currentLon,
@@ -62,22 +63,30 @@ class NavigationEngine(
         val bearingToTarget = route.initialBearing
         val isArrived = distanceMeters < MathHelper.ARRIVAL_DISTANCE_THRESHOLD_METERS
 
-        // 2. Heading determination with strict threshold gating
+        // 2. Heading source determination with non-compass motion tracker
         val accuracy = gpsAccuracyMeters ?: 10f
+
         val (deviceHeading, headingSource) = when {
             hasCompassSensor && compassAzimuth != null -> {
+                // Hardware magnetometer compass available
                 Pair(compassAzimuth, HeadingSource.COMPASS_SENSOR)
             }
-            MathHelper.shouldUpdateBearing(distanceMeters, speedMetersPerSec, accuracy) && hasGpsBearing && gpsBearing != null -> {
-                lastGpsHeading = gpsBearing
-                Pair(gpsBearing, HeadingSource.GPS_BEARING)
-            }
-            lastGpsHeading != null -> {
-                // Freeze heading during stop or when within threshold to eliminate erratic rotation
-                Pair(lastGpsHeading!!, HeadingSource.GPS_BEARING)
-            }
             else -> {
-                Pair(0f, HeadingSource.NONE)
+                // Magnetometer-less device: feed through NonCompassMotionTracker
+                val motionBearing = motionTracker.updateBearing(
+                    currentLat = currentLat,
+                    currentLon = currentLon,
+                    speedMps = speedMetersPerSec,
+                    accuracyMeters = accuracy,
+                    currentTimeMs = currentTimeMs,
+                    rawGpsBearing = if (hasGpsBearing) gpsBearing else null
+                )
+
+                if (motionBearing != null) {
+                    Pair(motionBearing, HeadingSource.GPS_BEARING)
+                } else {
+                    Pair(0f, HeadingSource.NONE)
+                }
             }
         }
 
@@ -121,6 +130,6 @@ class NavigationEngine(
     fun reset() {
         smoothedArrowAngle = 0f
         isAngleInitialized = false
-        lastGpsHeading = null
+        motionTracker.reset()
     }
 }
