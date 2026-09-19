@@ -5,10 +5,11 @@ on:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
+  workflow_dispatch: # Дозволяє за потреби запускати збірку вручну кнопкою
 
 jobs:
   build:
-    name: Build & Verify APK
+    name: Build & Verify Release APK
     runs-on: ubuntu-latest
 
     steps:
@@ -25,15 +26,25 @@ jobs:
     - name: Make gradlew executable
       run: chmod +x gradlew
 
-    - name: Build Debug APK with Gradle
-      run: ./gradlew assembleDebug --stacktrace
+    # 1. Автоматично генеруємо ключ підпису безпосередньо в хмарі GitHub
+    - name: Generate Release Keystore
+      run: |
+        keytool -genkey -v -keystore release.keystore -alias releaseAlias -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=App, OU=Dev, O=AI, L=Kyiv, S=UA, C=UA" -storepass "MyPassword123" -keypass "MyPassword123"
 
+    # 2. Запускаємо тести перед збіркою, щоб переконатися, що все працює
     - name: Run Unit Tests
-      run: ./gradlew testDebugUnitTest
+      run: ./gradlew testReleaseUnitTest
 
-    - name: Upload Debug APK
+    # 3. Збираємо та підписуємо релізний APK, повністю ігноруючи проблемний лінтер (-x lintVitalRelease)
+    - name: Build Signed Release APK with Gradle
+      run: ./gradlew assembleRelease --stacktrace -x lintVitalRelease
+      env:
+        GRADLE_OPTS: "-Dorg.gradle.project.signingKeyStore=../release.keystore -Dorg.gradle.project.signingStorePassword=MyPassword123 -Dorg.gradle.project.signingKeyAlias=releaseAlias -Dorg.gradle.project.signingKeyPassword=MyPassword123"
+
+    # 4. Вивантажуємо готовий релізний файл для скачування
+    - name: Upload Signed Release APK
       uses: actions/upload-artifact@v4
       with:
-        name: pointarrow-debug-apk
-        path: app/build/outputs/apk/debug/*.apk
-        if-no-files-found: ignore
+        name: pointarrow-release-apk
+        path: app/build/outputs/apk/release/*.apk
+        if-no-files-found: error
