@@ -18,12 +18,11 @@ data class NavigationUiState(
     val isGpsLocked: Boolean = false,
     val headingSource: HeadingSource = HeadingSource.NONE,
     val isTrackingActive: Boolean = false,
-    val hasCompassSensor: Boolean = true
+    val hasCompassSensor: Boolean = true,
+    val isArrived: Boolean = false
 ) {
     val hasTarget: Boolean get() = targetPointName != null
-
     val showNoCompassWarning: Boolean get() = !hasCompassSensor
-
     val showAltitudeIndicator: Boolean
         get() = deltaAltitudeMeters != null && abs(deltaAltitudeMeters) >= 10.0
 

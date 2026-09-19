@@ -1,7 +1,6 @@
 package com.pointarrow.nav.domain.engine
 
-import com.pointarrow.nav.domain.filter.CircularLowPassFilter
-import com.pointarrow.nav.domain.math.GeoMath
+import com.pointarrow.nav.data.math.MathHelper
 
 enum class HeadingSource {
     GPS_BEARING,
@@ -14,16 +13,15 @@ data class NavigationResult(
     val deltaAltitudeMeters: Double?,
     val arrowAngle: Float,
     val speedKmh: Float,
-    val headingSource: HeadingSource
+    val headingSource: HeadingSource,
+    val isArrived: Boolean = false
 )
 
 class NavigationEngine(
-    private val lowPassFilter: CircularLowPassFilter = CircularLowPassFilter(alpha = 0.18f)
+    private val alpha: Float = MathHelper.DEFAULT_SMOOTHING_ALPHA
 ) {
-    companion object {
-        const val SPEED_THRESHOLD_MPS = 0.8f // > 0.8 м/с (~2.88 км/год)
-    }
-
+    private var smoothedArrowAngle: Float = 0f
+    private var isAngleInitialized: Boolean = false
     private var lastGpsHeading: Float? = null
 
     fun computeNavigation(
@@ -35,6 +33,7 @@ class NavigationEngine(
         hasGpsBearing: Boolean,
         compassAzimuth: Float?,
         hasCompassSensor: Boolean,
+        gpsAccuracyMeters: Float? = null,
         targetLat: Double?,
         targetLon: Double?,
         targetAlt: Double?
@@ -47,46 +46,61 @@ class NavigationEngine(
                 deltaAltitudeMeters = null,
                 arrowAngle = 0f,
                 speedKmh = speedKmh,
-                headingSource = HeadingSource.NONE
+                headingSource = HeadingSource.NONE,
+                isArrived = false
             )
         }
 
-        val distanceMeters = GeoMath.calculateDistanceMeters(
-            lat1 = currentLat,
-            lon1 = currentLon,
-            lat2 = targetLat,
-            lon2 = targetLon
+        // 1. WGS-84 geodesic calculation via MathHelper (ellipsoid model)
+        val route = MathHelper.calculateWGS84Route(
+            startLat = currentLat,
+            startLon = currentLon,
+            destLat = targetLat,
+            destLon = targetLon
         )
+        val distanceMeters = route.distanceMeters
+        val bearingToTarget = route.initialBearing
+        val isArrived = distanceMeters < MathHelper.ARRIVAL_DISTANCE_THRESHOLD_METERS
 
-        val bearingToTarget = GeoMath.calculateBearingDegrees(
-            lat1 = currentLat,
-            lon1 = currentLon,
-            lat2 = targetLat,
-            lon2 = targetLon
-        )
-
-        val (deviceHeading, headingSource) = if (hasCompassSensor && compassAzimuth != null) {
-            // Режим компаса: азимут магнітометра + акселерометра
-            Pair(compassAzimuth, HeadingSource.COMPASS_SENSOR)
-        } else {
-            // Режим відсутності компаса (тільки GPS під час руху > 0.8 м/с)
-            if (speedMetersPerSec > SPEED_THRESHOLD_MPS && hasGpsBearing && gpsBearing != null) {
+        // 2. Heading determination with strict threshold gating
+        val accuracy = gpsAccuracyMeters ?: 10f
+        val (deviceHeading, headingSource) = when {
+            hasCompassSensor && compassAzimuth != null -> {
+                Pair(compassAzimuth, HeadingSource.COMPASS_SENSOR)
+            }
+            MathHelper.shouldUpdateBearing(distanceMeters, speedMetersPerSec, accuracy) && hasGpsBearing && gpsBearing != null -> {
                 lastGpsHeading = gpsBearing
                 Pair(gpsBearing, HeadingSource.GPS_BEARING)
-            } else if (lastGpsHeading != null) {
-                // Фіксуємо останній відомий GPS-курс під час зупинки, щоб уникнути сіпання
+            }
+            lastGpsHeading != null -> {
+                // Freeze heading during stop or when within threshold to eliminate erratic rotation
                 Pair(lastGpsHeading!!, HeadingSource.GPS_BEARING)
-            } else {
+            }
+            else -> {
                 Pair(0f, HeadingSource.NONE)
             }
         }
 
-        val rawArrowAngle = if (headingSource != HeadingSource.NONE) {
-            GeoMath.normalizeAngle360(bearingToTarget - deviceHeading)
+        // 3. Raw relative angle to target
+        val rawArrowAngle = if (headingSource != HeadingSource.NONE && !isArrived) {
+            var diff = (bearingToTarget - deviceHeading) % 360f
+            if (diff < 0f) diff += 360f
+            diff
         } else {
             0f
         }
-        val filteredArrowAngle = lowPassFilter.filter(rawArrowAngle)
+
+        // 4. Exponential low-pass smoothing (alpha ≈ 0.2f)
+        if (!isAngleInitialized) {
+            smoothedArrowAngle = rawArrowAngle
+            isAngleInitialized = true
+        } else if (!isArrived) {
+            smoothedArrowAngle = MathHelper.smoothBearingLowPass(
+                currentSmoothed = smoothedArrowAngle,
+                targetBearing = rawArrowAngle,
+                alpha = alpha
+            )
+        }
 
         val deltaAltitude = if (currentAlt != null && targetAlt != null) {
             targetAlt - currentAlt
@@ -97,14 +111,16 @@ class NavigationEngine(
         return NavigationResult(
             distanceMeters = distanceMeters,
             deltaAltitudeMeters = deltaAltitude,
-            arrowAngle = filteredArrowAngle,
+            arrowAngle = smoothedArrowAngle,
             speedKmh = speedKmh,
-            headingSource = headingSource
+            headingSource = headingSource,
+            isArrived = isArrived
         )
     }
 
     fun reset() {
-        lowPassFilter.reset()
+        smoothedArrowAngle = 0f
+        isAngleInitialized = false
         lastGpsHeading = null
     }
 }

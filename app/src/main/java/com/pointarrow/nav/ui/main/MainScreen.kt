@@ -36,7 +36,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.pointarrow.nav.ui.components.CompassArrow
 import com.pointarrow.nav.ui.components.TelemetryBar
 import com.pointarrow.nav.ui.theme.DarkSurface
 import com.pointarrow.nav.ui.theme.NeonGreen
@@ -84,35 +83,35 @@ fun MainScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = uiState.satelliteStatusText,
-                    color = TextSecondary,
-                    fontSize = 11.sp,
+                    color = if (uiState.isGpsLocked) NeonGreen else Color(0xFFFF9100),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
                     fontFamily = FontFamily.Monospace
                 )
             }
 
-            // Застереження при відсутності компаса (тільки якщо датчик відсутній)
+            // Попередження про відсутність компаса (якщо активний резервний режим GPS)
             if (uiState.showNoCompassWarning) {
-                Spacer(modifier = Modifier.height(4.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFF231C05), RoundedCornerShape(8.dp))
-                        .border(1.dp, Color(0xFFFFB300).copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center
+                        .padding(top = 4.dp)
+                        .background(Color(0xFF221100), RoundedCornerShape(8.dp))
+                        .border(1.dp, Color(0xFFFF9100), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        text = "⚠️ Компас відсутній. Почніть рух, щоб стрілка вказала напрямок",
-                        color = Color(0xFFFFD54F),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
+                        text = "Увага: Магнітний компас відсутній. Напрямок визначається за GPS-рухом (>0.8 м/с).",
+                        color = Color(0xFFFFB74D),
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        lineHeight = 16.sp
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
 
-            // Центральна зона: стрілка або підказка + індикатор різниці висот
+            // Центральна область навігації
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -120,20 +119,16 @@ fun MainScreen(
                 contentAlignment = Alignment.Center
             ) {
                 if (uiState.hasTarget) {
-                    Box(
-                        modifier = Modifier.size(310.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CompassArrow(
-                            targetAngle = uiState.arrowAngleDegrees,
-                            isTargetReached = (uiState.distanceMeters ?: Float.MAX_VALUE) <= 5f,
-                            arrowSize = 290.dp,
-                            arrowColor = NeonGreen,
-                            accentColor = Color(0xFF1B5E20)
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        // ArrowScreen handles Modifier.rotate(...) and the "Destination Reached" card
+                        ArrowScreen(
+                            uiState = uiState,
+                            onClearTarget = onClearTarget,
+                            modifier = Modifier.fillMaxSize()
                         )
 
-                        // Vertical Offset Badge: показується ТІЛЬКИ якщо |Delta h| >= 10 метрів
-                        if (uiState.showAltitudeIndicator) {
+                        // Індикатор відносної висоти Delta h (якщо |Delta h| >= 10 метрів і ще не прибули)
+                        if (uiState.showAltitudeIndicator && !uiState.isArrived) {
                             uiState.formattedAltitudeDelta?.let { deltaText ->
                                 Box(
                                     modifier = Modifier
@@ -177,8 +172,8 @@ fun MainScreen(
                 }
             }
 
-            // Блок інформації про ціль
-            if (uiState.hasTarget) {
+            // Блок інформації про ціль (якщо встановлено і ще не прибули)
+            if (uiState.hasTarget && !uiState.isArrived) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -212,7 +207,6 @@ fun MainScreen(
                                 fontFamily = FontFamily.Monospace
                             )
                         }
-
                         IconButton(
                             onClick = onClearTarget,
                             modifier = Modifier
