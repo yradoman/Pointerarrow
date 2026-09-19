@@ -19,21 +19,25 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // Retain only Ukrainian and English locale resources to strip unused language bloat
+        resourceConfigurations += setOf("uk", "en")
+
+        // Retain only 64-bit ARM architecture (arm64-v8a) to minimize APK size
+        ndk {
+            abiFilters += setOf("arm64-v8a")
+        }
     }
 
     buildTypes {
-        release {
+        getByName("release") {
             isMinifyEnabled = true
             isShrinkResources = true
+            isDebuggable = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
-        }
-        debug {
-            applicationIdSuffix = ".debug"
-            isDebuggable = true
         }
     }
 
@@ -57,7 +61,12 @@ android {
 
     packaging {
         resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += setOf(
+                "/META-INF/{AL2.0,LGPL2.1}",
+                "/META-INF/*.version",
+                "/META-INF/*.kotlin_module",
+                "DebugProbesKt.bin"
+            )
         }
     }
 }
